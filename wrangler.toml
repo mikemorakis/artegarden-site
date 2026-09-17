@@ -7,3 +7,8 @@ binding = "DB"
 database_name = "artegarden-db"
 database_id = "b0d763af-83dd-4b57-86cf-9bdc566a0163"
 migrations_dir = "migrations"
+
+[vars]
+MAIL_FROM = "Arte Garden <offers@artegarden.gr>"
+MAIL_CC = "artegardenathens@gmail.com"
+NOTIFY_EMAIL = "artegardenathens@gmail.com"

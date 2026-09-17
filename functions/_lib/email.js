@@ -106,7 +106,8 @@ async function formSubmit(to, payload) {
  */
 export async function sendOfferEmail(env, { to, subject, html, text, inquiry, offer }) {
   if (env.RESEND_API_KEY) {
-    const from = env.MAIL_FROM || "Arte Garden <onboarding@resend.dev>";
+    const from = env.MAIL_FROM || "Arte Garden <offers@artegarden.gr>";
+    const cc = env.MAIL_CC || "artegardenathens@gmail.com";
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -116,7 +117,8 @@ export async function sendOfferEmail(env, { to, subject, html, text, inquiry, of
       body: JSON.stringify({
         from,
         to: [to],
-        cc: env.MAIL_CC ? [env.MAIL_CC] : ["artegardenathens@gmail.com"],
+        cc: cc ? [cc] : undefined,
+        reply_to: cc || undefined,
         subject,
         html,
         text,
