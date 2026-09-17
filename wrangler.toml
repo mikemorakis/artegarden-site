@@ -8,6 +8,12 @@ database_name = "artegarden-db"
 database_id = "b0d763af-83dd-4b57-86cf-9bdc566a0163"
 migrations_dir = "migrations"
 
+[[services]]
+binding = "MAIL"
+service = "artegarden-mail"
+
 [vars]
-MAIL_FROM = "Arte Garden <offers@artegarden.gr>"
+MAIL_FROM = "offers@artegarden.gr"
+MAIL_FROM_NAME = "Arte Garden"
 MAIL_CC = "artegardenathens@gmail.com"
+MAIL_REPLY_TO = "artegardenathens@gmail.com"

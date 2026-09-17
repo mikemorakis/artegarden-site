@@ -13,23 +13,22 @@ python3 gen.py          # χτίζει το site στο dist/
 ## Deploy
 
 ```
-cd dist && zip -r ../artegarden.zip .
+py -3 gen.py
+npx wrangler pages deploy dist --project-name=artegarden
 ```
-Cloudflare dashboard → Workers & Pages → artegarden → Create deployment →
-ανέβασμα του zip → Save and deploy. Το `_headers` και το 404.html
-περιλαμβάνονται στο build.
+
+## Admin προσφορές
+
+- URL: https://artegarden.gr/admin/
+- Οι δηλώσεις φόρμας μπαίνουν σε D1· από το admin στέλνεις προσφορά (τιμή/άτομο, χώρος, includes, ημερομηνία).
+- Secrets: `ADMIN_USER`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `NOTIFY_EMAIL`
 
 ## Δομή
 
 - `gen.py`: περιεχόμενο (EVENTS, τιμές, FAQ) στην κορυφή, templates από κάτω
 - `assets/styles.css`: παλέτα σε CSS variables στο `:root`
-- `assets/main.js`: drawer, lightbox, ημερολόγιο, φόρμα FormSubmit
+- `assets/main.js`: drawer, lightbox, ημερολόγιο, φόρμα → `/api/inquiries`
+- `functions/`: Pages Functions (auth, inquiries, offers)
+- `admin/`: UI προσφορών
 - `assets/fonts/`: Ysabeau Infant variable (greek + latin), self-hosted
-- `assets/img/`: WebP σε responsive μεγέθη (δες make_images.py στο template kit)
-
-## Σημειώσεις
-
-- Ενιαία τιμολόγηση 15€/άτομο: μπλοκ «ενιαία τιμολόγηση» μέσα στο gen.py
-- Κολοφώνας: /syntelestes/ κατά το πρότυπο _symbols-colophon-template
-- Emails φόρμας: base64 μέσα στο main.js, δεν εμφανίζονται πουθενά ως κείμενο
-- PageSpeed 100/100/100/100 mobile: inline CSS, self-hosted fonts, preload hero
+- `assets/img/`: WebP σε responsive μεγέθη

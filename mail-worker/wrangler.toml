@@ -1,0 +1,6 @@
+name = "artegarden-mail"
+main = "index.js"
+compatibility_date = "2025-09-01"
+
+[[send_email]]
+name = "EMAIL"

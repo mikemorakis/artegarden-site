@@ -68,106 +68,34 @@ export function buildOfferEmail({ inquiry, offer }) {
   return { subject, html, text, total };
 }
 
-const FS_HEADERS = {
-  "Content-Type": "application/json",
-  Accept: "application/json",
-  Origin: "https://artegarden.gr",
-  Referer: "https://artegarden.gr/",
-};
-
-async function formSubmit(to, payload) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
-      method: "POST",
-      headers: FS_HEADERS,
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    const raw = await res.text();
-    let data = null;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      /* ignore */
-    }
-    const ok = res.ok && data && (data.success === true || data.success === "true");
-    return { ok, status: res.status, raw, data };
-  } finally {
-    clearTimeout(timer);
+async function sendViaMailWorker(env, payload) {
+  if (!env.MAIL || typeof env.MAIL.fetch !== "function") {
+    return { ok: false, error: "mail_binding_missing" };
   }
+  const res = await env.MAIL.fetch("https://artegarden-mail/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) {
+    return { ok: false, error: data.error || `mail_worker_${res.status}` };
+  }
+  return { ok: true, via: "cloudflare_email" };
 }
 
-/**
- * Send offer email.
- * Prefer Resend. Otherwise notify activated FormSubmit inboxes (venue)
- * with full offer text addressed to the customer.
- */
-export async function sendOfferEmail(env, { to, subject, html, text, inquiry, offer }) {
-  if (env.RESEND_API_KEY) {
-    const from = env.MAIL_FROM || "Arte Garden <offers@artegarden.gr>";
-    const cc = env.MAIL_CC || "artegardenathens@gmail.com";
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [to],
-        cc: cc ? [cc] : undefined,
-        reply_to: cc || undefined,
-        subject,
-        html,
-        text,
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      return { ok: false, error: body || `resend_${res.status}` };
-    }
-    return { ok: true, via: "resend" };
-  }
-
-  const targets = [
-    env.NOTIFY_EMAIL || "artegardenathens@gmail.com",
-    "michalismorakis@gmail.com",
-  ].filter((v, i, a) => v && a.indexOf(v) === i);
-
-  const guests = offer.guests || inquiry.guests || 0;
-  const payload = {
-    _subject: `${subject} → ${to}`,
-    _template: "table",
-    _captcha: "false",
-    _replyto: to,
-    name: inquiry.name,
-    email: to,
-    phone: inquiry.phone || "",
-    event_type: inquiry.event_type || "",
-    event_date: offer.event_date,
-    guests,
-    price_per_person: offer.price_per_person,
-    venue_fee: offer.venue_fee,
-    includes: offer.includes,
-    notes: offer.notes || "",
-    total: offer.total,
-    customer_email: to,
-    message: text,
-  };
-
-  const results = await Promise.all(targets.map((dest) => formSubmit(dest, payload).catch((e) => ({ ok: false, error: String(e) }))));
-  const anyOk = results.some((r) => r && r.ok);
-  if (!anyOk) {
-    return { ok: false, error: results.map((r) => r && (r.raw || r.error || r.status)).join(" | ") || "formsubmit_failed" };
-  }
-
-  return {
-    ok: true,
-    via: "formsubmit_venue",
-    warning: `Η προσφορά στάλθηκε στα inbox του Arte Garden (προς προώθηση στον πελάτη: ${to}).`,
-  };
+/** Send offer from offers@artegarden.gr via Cloudflare Email Sending. */
+export async function sendOfferEmail(env, { to, subject, html, text }) {
+  return sendViaMailWorker(env, {
+    to,
+    from: env.MAIL_FROM || "offers@artegarden.gr",
+    fromName: env.MAIL_FROM_NAME || "Arte Garden",
+    cc: env.MAIL_CC || "artegardenathens@gmail.com",
+    replyTo: env.MAIL_REPLY_TO || env.MAIL_CC || "artegardenathens@gmail.com",
+    subject,
+    html,
+    text,
+  });
 }
 
 export async function notifyNewInquiry(env, row) {
@@ -176,19 +104,31 @@ export async function notifyNewInquiry(env, row) {
     "michalismorakis@gmail.com",
   ].filter((v, i, a) => v && a.indexOf(v) === i);
 
-  const payload = {
-    _subject: `Νέα δήλωση — Arte Garden${row.event_type ? ` (${row.event_type})` : ""}`,
-    _template: "table",
-    _captcha: "false",
-    name: row.name,
-    phone: row.phone,
-    email: row.email || "",
-    type: row.event_type,
-    date: row.event_date || "",
-    guests: row.guests || "",
-    message: row.message || "",
-    admin: "https://artegarden.gr/admin/",
-  };
+  const subject = `Νέα δήλωση — Arte Garden${row.event_type ? ` (${row.event_type})` : ""}`;
+  const text = [
+    `Νέα δήλωση ενδιαφέροντος`,
+    ``,
+    `Όνομα: ${row.name}`,
+    `Τηλέφωνο: ${row.phone}`,
+    `Email: ${row.email || "—"}`,
+    `Είδος: ${row.event_type}`,
+    `Ημερομηνία: ${row.event_date || "—"}`,
+    `Καλεσμένοι: ${row.guests || "—"}`,
+    ``,
+    row.message || "",
+    ``,
+    `Admin: https://artegarden.gr/admin/`,
+  ].join("\n");
 
-  await Promise.all(targets.map((venue) => formSubmit(venue, payload).catch(() => null)));
+  await Promise.all(
+    targets.map((to) =>
+      sendViaMailWorker(env, {
+        to,
+        from: env.MAIL_FROM || "offers@artegarden.gr",
+        fromName: env.MAIL_FROM_NAME || "Arte Garden",
+        subject,
+        text,
+      }).catch(() => null)
+    )
+  );
 }
