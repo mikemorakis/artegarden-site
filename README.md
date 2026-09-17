@@ -12,8 +12,14 @@ python3 gen.py          # χτίζει το site στο dist/
 
 ## Deploy
 
+**Αυτόματο (προτεινόμενο):** push στο `main` ενεργοποιεί το GitHub Action (`.github/workflows/deploy.yml`), που χτίζει και ανεβάζει στο Cloudflare Pages.
+
+Χρειάζονται μία φορά τα GitHub secrets `CLOUDFLARE_API_TOKEN` και `CLOUDFLARE_ACCOUNT_ID` (ίδια με το physiodynamic).
+
+**Χειροκίνητο:**
+
 ```
-py -3 gen.py
+python3 gen.py
 npx wrangler pages deploy dist --project-name=artegarden
 ```
 
