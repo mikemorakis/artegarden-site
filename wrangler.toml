@@ -11,4 +11,3 @@ migrations_dir = "migrations"
 [vars]
 MAIL_FROM = "Arte Garden <offers@artegarden.gr>"
 MAIL_CC = "artegardenathens@gmail.com"
-NOTIFY_EMAIL = "artegardenathens@gmail.com"
