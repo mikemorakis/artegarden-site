@@ -76,29 +76,33 @@ const FS_HEADERS = {
 };
 
 async function formSubmit(to, payload) {
-  const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
-    method: "POST",
-    headers: FS_HEADERS,
-    body: JSON.stringify(payload),
-  });
-  const raw = await res.text();
-  let data = null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    data = JSON.parse(raw);
-  } catch {
-    /* ignore */
+    const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
+      method: "POST",
+      headers: FS_HEADERS,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const raw = await res.text();
+    let data = null;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    const ok = res.ok && data && (data.success === true || data.success === "true");
+    return { ok, status: res.status, raw, data };
+  } finally {
+    clearTimeout(timer);
   }
-  const ok =
-    res.ok &&
-    data &&
-    (data.success === true || data.success === "true");
-  return { ok, status: res.status, raw, data };
 }
 
 /**
- * Send offer to customer.
- * 1) Resend if RESEND_API_KEY is set (HTML email)
- * 2) Else FormSubmit to venue + _autoresponse to customer (needs Origin headers from Workers)
+ * Send offer email.
+ * Prefer Resend. Otherwise notify activated FormSubmit inboxes (venue)
+ * with full offer text addressed to the customer.
  */
 export async function sendOfferEmail(env, { to, subject, html, text, inquiry, offer }) {
   if (env.RESEND_API_KEY) {
@@ -125,14 +129,17 @@ export async function sendOfferEmail(env, { to, subject, html, text, inquiry, of
     return { ok: true, via: "resend" };
   }
 
-  const venue = env.NOTIFY_EMAIL || "artegardenathens@gmail.com";
-  const guests = offer.guests || inquiry.guests || 0;
+  const targets = [
+    env.NOTIFY_EMAIL || "artegardenathens@gmail.com",
+    "michalismorakis@gmail.com",
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
 
-  // 1) Notify venue inbox (activated FormSubmit destination)
-  const venuePost = await formSubmit(venue, {
-    _subject: subject,
+  const guests = offer.guests || inquiry.guests || 0;
+  const payload = {
+    _subject: `${subject} → ${to}`,
     _template: "table",
     _captcha: "false",
+    _replyto: to,
     name: inquiry.name,
     email: to,
     phone: inquiry.phone || "",
@@ -144,53 +151,20 @@ export async function sendOfferEmail(env, { to, subject, html, text, inquiry, of
     includes: offer.includes,
     notes: offer.notes || "",
     total: offer.total,
+    customer_email: to,
     message: text,
-  });
+  };
 
-  // 2) Also notify michalis if different
-  if (venue !== "michalismorakis@gmail.com") {
-    await formSubmit("michalismorakis@gmail.com", {
-      _subject: subject,
-      _template: "table",
-      _captcha: "false",
-      name: inquiry.name,
-      email: to,
-      phone: inquiry.phone || "",
-      message: text,
-    });
-  }
-
-  // 3) Send to customer via FormSubmit destination = customer email
-  //    (first time FormSubmit may require activation — we still deliver venue copies)
-  const customerPost = await formSubmit(to, {
-    _subject: subject,
-    _template: "table",
-    _captcha: "false",
-    _webhook: "",
-    name: "Arte Garden",
-    email: venue,
-    phone: "2114099700",
-    message: text,
-  });
-
-  if (customerPost.ok) {
-    return { ok: true, via: "formsubmit_customer" };
-  }
-
-  // Customer destination not activated yet — venue got the offer; treat as partial success
-  // so the offer is saved, and admin can forward / activate.
-  if (venuePost.ok) {
-    return {
-      ok: true,
-      via: "formsubmit_venue_only",
-      warning:
-        "Η προσφορά στάλθηκε στα email του Arte Garden. Αν ο πελάτης δεν την πάρει, προώθησέ την χειροκίνητα ή ζήτησέ του να ενεργοποιήσει το FormSubmit από το πρώτο email.",
-    };
+  const results = await Promise.all(targets.map((dest) => formSubmit(dest, payload).catch((e) => ({ ok: false, error: String(e) }))));
+  const anyOk = results.some((r) => r && r.ok);
+  if (!anyOk) {
+    return { ok: false, error: results.map((r) => r && (r.raw || r.error || r.status)).join(" | ") || "formsubmit_failed" };
   }
 
   return {
-    ok: false,
-    error: customerPost.raw || venuePost.raw || `formsubmit_${customerPost.status}`,
+    ok: true,
+    via: "formsubmit_venue",
+    warning: `Η προσφορά στάλθηκε στα inbox του Arte Garden (προς προώθηση στον πελάτη: ${to}).`,
   };
 }
 

@@ -42,19 +42,8 @@ export async function onRequestPost(context) {
   };
 
   const email = buildOfferEmail({ inquiry, offer });
-  const sent = await sendOfferEmail(context.env, {
-    to: inquiry.email,
-    subject: email.subject,
-    html: email.html,
-    text: email.text,
-    inquiry,
-    offer,
-  });
 
-  if (!sent.ok) {
-    return json({ error: "send_failed", detail: sent.error }, 502);
-  }
-
+  // Save first so a mail failure never loses the offer
   const insert = await context.env.DB.prepare(
     `INSERT INTO offers (inquiry_id, event_date, price_per_person, venue_fee, guests, includes, notes, total, sent_at, sent_to)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`
@@ -62,12 +51,45 @@ export async function onRequestPost(context) {
 
   await context.env.DB.prepare("UPDATE inquiries SET status = 'offered' WHERE id = ?").bind(id).run();
 
+  let sent = { ok: false, via: null, error: null, warning: null };
+  try {
+    sent = await sendOfferEmail(context.env, {
+      to: inquiry.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      inquiry,
+      offer,
+    });
+  } catch (e) {
+    sent = { ok: false, error: String(e && e.message ? e.message : e) };
+  }
+
+  const mailto = `mailto:${encodeURIComponent(inquiry.email)}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.text)}`;
+
+  if (!sent.ok) {
+    return json({
+      ok: true,
+      offer_id: insert.meta.last_row_id,
+      total,
+      sent_to: inquiry.email,
+      emailed: false,
+      via: null,
+      warning: `Η προσφορά αποθηκεύτηκε, αλλά το email δεν στάλθηκε αυτόματα (${sent.error || "unknown"}). Άνοιξε το Gmail από το κουμπί.`,
+      mailto,
+      text: email.text,
+      subject: email.subject,
+    });
+  }
+
   return json({
     ok: true,
     offer_id: insert.meta.last_row_id,
     total,
     via: sent.via,
     sent_to: inquiry.email,
+    emailed: true,
     warning: sent.warning || null,
+    mailto,
   });
 }

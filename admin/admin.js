@@ -204,14 +204,25 @@
           notes: f.notes.value,
         }),
       });
-      ok.textContent = `Στάλθηκε στο ${data.sent_to} (σύνολο ${Number(data.total).toFixed(2)}€).`;
+      ok.textContent = data.emailed
+        ? `Στάλθηκε προς ${data.sent_to} (σύνολο ${Number(data.total).toFixed(2)}€).`
+        : `Αποθηκεύτηκε η προσφορά για ${data.sent_to} (σύνολο ${Number(data.total).toFixed(2)}€).`;
       if (data.warning) ok.textContent += " " + data.warning;
+      if (data.mailto) {
+        const a = document.createElement("a");
+        a.href = data.mailto;
+        a.textContent = "Άνοιγμα Gmail προς πελάτη";
+        a.className = "mailto-link";
+        a.style.cssText = "display:inline-block;margin-top:8px;font-weight:700;color:#2f6b3a";
+        ok.appendChild(document.createElement("br"));
+        ok.appendChild(a);
+      }
       await openInquiry(current.id);
     } catch (ex) {
       const detail = ex.data?.detail;
       err.textContent =
-        (typeof detail === "string" && detail) ||
-        (ex.data?.error ? `${ex.data.error}${detail ? ": " + detail : ""}` : null) ||
+        (typeof detail === "string" && detail.slice(0, 300)) ||
+        (ex.data?.error ? String(ex.data.error) : null) ||
         ex.message ||
         "Αποτυχία αποστολής.";
     } finally {
