@@ -601,7 +601,7 @@ def footer():
   <a href="tel:{PHONE_TEL}" class="p-phone">{icon("phone", "", 17)} {PHONE_DISPLAY}</a>
   <a href="/kratisi/" class="p-cta">Κλείστε ημερομηνία <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
 </div>
-<script src="/assets/main.js" defer></script>
+<script src="/assets/main.js?v=20260917b" defer></script>
 </body>
 </html>"""
 
