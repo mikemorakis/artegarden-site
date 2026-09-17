@@ -68,10 +68,37 @@ export function buildOfferEmail({ inquiry, offer }) {
   return { subject, html, text, total };
 }
 
+const FS_HEADERS = {
+  "Content-Type": "application/json",
+  Accept: "application/json",
+  Origin: "https://artegarden.gr",
+  Referer: "https://artegarden.gr/",
+};
+
+async function formSubmit(to, payload) {
+  const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
+    method: "POST",
+    headers: FS_HEADERS,
+    body: JSON.stringify(payload),
+  });
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    /* ignore */
+  }
+  const ok =
+    res.ok &&
+    data &&
+    (data.success === true || data.success === "true");
+  return { ok, status: res.status, raw, data };
+}
+
 /**
  * Send offer to customer.
  * 1) Resend if RESEND_API_KEY is set (HTML email)
- * 2) Else FormSubmit to venue inbox + _autoresponse to customer email field
+ * 2) Else FormSubmit to venue + _autoresponse to customer (needs Origin headers from Workers)
  */
 export async function sendOfferEmail(env, { to, subject, html, text, inquiry, offer }) {
   if (env.RESEND_API_KEY) {
@@ -98,36 +125,73 @@ export async function sendOfferEmail(env, { to, subject, html, text, inquiry, of
     return { ok: true, via: "resend" };
   }
 
-  // FormSubmit: venue gets the record; customer gets _autoresponse
   const venue = env.NOTIFY_EMAIL || "artegardenathens@gmail.com";
   const guests = offer.guests || inquiry.guests || 0;
-  const res = await fetch(`https://formsubmit.co/ajax/${venue}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({
+
+  // 1) Notify venue inbox (activated FormSubmit destination)
+  const venuePost = await formSubmit(venue, {
+    _subject: subject,
+    _template: "table",
+    _captcha: "false",
+    name: inquiry.name,
+    email: to,
+    phone: inquiry.phone || "",
+    event_type: inquiry.event_type || "",
+    event_date: offer.event_date,
+    guests,
+    price_per_person: offer.price_per_person,
+    venue_fee: offer.venue_fee,
+    includes: offer.includes,
+    notes: offer.notes || "",
+    total: offer.total,
+    message: text,
+  });
+
+  // 2) Also notify michalis if different
+  if (venue !== "michalismorakis@gmail.com") {
+    await formSubmit("michalismorakis@gmail.com", {
       _subject: subject,
       _template: "table",
       _captcha: "false",
-      _autoresponse: text,
       name: inquiry.name,
       email: to,
       phone: inquiry.phone || "",
-      event_type: inquiry.event_type || "",
-      event_date: offer.event_date,
-      guests,
-      price_per_person: offer.price_per_person,
-      venue_fee: offer.venue_fee,
-      includes: offer.includes,
-      notes: offer.notes || "",
-      total: offer.total,
       message: text,
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    return { ok: false, error: body || `formsubmit_${res.status}` };
+    });
   }
-  return { ok: true, via: "formsubmit" };
+
+  // 3) Send to customer via FormSubmit destination = customer email
+  //    (first time FormSubmit may require activation — we still deliver venue copies)
+  const customerPost = await formSubmit(to, {
+    _subject: subject,
+    _template: "table",
+    _captcha: "false",
+    _webhook: "",
+    name: "Arte Garden",
+    email: venue,
+    phone: "2114099700",
+    message: text,
+  });
+
+  if (customerPost.ok) {
+    return { ok: true, via: "formsubmit_customer" };
+  }
+
+  // Customer destination not activated yet — venue got the offer; treat as partial success
+  // so the offer is saved, and admin can forward / activate.
+  if (venuePost.ok) {
+    return {
+      ok: true,
+      via: "formsubmit_venue_only",
+      warning:
+        "Η προσφορά στάλθηκε στα email του Arte Garden. Αν ο πελάτης δεν την πάρει, προώθησέ την χειροκίνητα ή ζήτησέ του να ενεργοποιήσει το FormSubmit από το πρώτο email.",
+    };
+  }
+
+  return {
+    ok: false,
+    error: customerPost.raw || venuePost.raw || `formsubmit_${customerPost.status}`,
+  };
 }
 
 export async function notifyNewInquiry(env, row) {
@@ -150,17 +214,5 @@ export async function notifyNewInquiry(env, row) {
     admin: "https://artegarden.gr/admin/",
   };
 
-  await Promise.all(
-    targets.map(async (venue) => {
-      try {
-        await fetch(`https://formsubmit.co/ajax/${venue}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch {
-        /* non-fatal */
-      }
-    })
-  );
+  await Promise.all(targets.map((venue) => formSubmit(venue, payload).catch(() => null)));
 }

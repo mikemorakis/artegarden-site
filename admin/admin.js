@@ -205,9 +205,15 @@
         }),
       });
       ok.textContent = `Στάλθηκε στο ${data.sent_to} (σύνολο ${Number(data.total).toFixed(2)}€).`;
+      if (data.warning) ok.textContent += " " + data.warning;
       await openInquiry(current.id);
     } catch (ex) {
-      err.textContent = ex.data?.detail || ex.message || "Αποτυχία αποστολής.";
+      const detail = ex.data?.detail;
+      err.textContent =
+        (typeof detail === "string" && detail) ||
+        (ex.data?.error ? `${ex.data.error}${detail ? ": " + detail : ""}` : null) ||
+        ex.message ||
+        "Αποτυχία αποστολής.";
     } finally {
       btn.disabled = false;
       btn.textContent = "Αποστολή προσφοράς";

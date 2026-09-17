@@ -68,5 +68,6 @@ export async function onRequestPost(context) {
     total,
     via: sent.via,
     sent_to: inquiry.email,
+    warning: sent.warning || null,
   });
 }
