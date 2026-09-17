@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Admin — Arte Garden Προσφορές</title>
-  <link rel="stylesheet" href="/admin/admin.css">
+  <link rel="stylesheet" href="/admin/admin.css?v=20260917f">
 </head>
 <body>
   <div id="login-view" class="wrap narrow hidden">
@@ -36,7 +36,10 @@
           <button type="button" data-filter="offered" class="chip">Προσφορά</button>
           <button type="button" data-filter="closed" class="chip">Κλειστά</button>
         </div>
-        <div id="list"></div>
+        <div class="list-scroll" id="list-scroll">
+          <div id="list"></div>
+        </div>
+        <button type="button" class="list-hint" id="list-hint" hidden>↓ Περισσότερες δηλώσεις</button>
       </aside>
 
       <section class="detail-pane">
@@ -80,6 +83,6 @@
     </main>
   </div>
 
-  <script src="/admin/admin.js?v=20260917d"></script>
+  <script src="/admin/admin.js?v=20260917f"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
   const appView = $("#app-view");
   let current = null;
   let filter = "";
+  let listTotal = 0;
 
   async function api(path, opts = {}) {
     const res = await fetch(path, {
@@ -59,12 +60,28 @@
     $("#offer-total").textContent = guests ? `${total.toFixed(2)}€` : `${venue.toFixed(2)}€ (+ άτομα)`;
   }
 
+  function syncListOverflow() {
+    const scroller = $("#list-scroll");
+    const hint = $("#list-hint");
+    if (!scroller || !hint) return;
+    const overflow = scroller.scrollHeight > scroller.clientHeight + 8;
+    const remaining = overflow && scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 20;
+    hint.hidden = !remaining;
+    if (remaining) {
+      hint.textContent = listTotal > 1
+        ? `↓ Περισσότερες δηλώσεις · ${listTotal} συνολικά`
+        : "↓ Περισσότερες δηλώσεις";
+    }
+  }
+
   async function loadList() {
     const q = filter ? `?status=${encodeURIComponent(filter)}` : "";
     const { inquiries } = await api(`/api/inquiries${q}`);
     const list = $("#list");
+    listTotal = inquiries.length;
     if (!inquiries.length) {
       list.innerHTML = '<p class="empty">Καμία δήλωση.</p>';
+      syncListOverflow();
       return;
     }
     list.innerHTML = inquiries.map((i) => `
@@ -77,6 +94,7 @@
     $$(".item", list).forEach((btn) => {
       btn.addEventListener("click", () => openInquiry(Number(btn.dataset.id)));
     });
+    requestAnimationFrame(() => requestAnimationFrame(syncListOverflow));
   }
 
   function escapeHtml(s) {
@@ -164,6 +182,22 @@
       await loadList();
     });
   });
+
+  const listScroll = $("#list-scroll");
+  const listHint = $("#list-hint");
+  if (listScroll) {
+    listScroll.addEventListener("scroll", syncListOverflow, { passive: true });
+  }
+  if (listHint) {
+    listHint.addEventListener("click", () => {
+      if (!listScroll) return;
+      listScroll.scrollBy({
+        top: Math.round(Math.max(140, listScroll.clientHeight * 0.85)),
+        behavior: "smooth",
+      });
+    });
+  }
+  window.addEventListener("resize", syncListOverflow);
 
   $("#d-status").addEventListener("change", async (e) => {
     if (!current) return;
