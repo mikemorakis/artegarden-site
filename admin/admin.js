@@ -69,8 +69,8 @@
     hint.hidden = !remaining;
     if (remaining) {
       hint.textContent = listTotal > 1
-        ? `↓ Κύλιση για περισσότερες · ${listTotal} δηλώσεις`
-        : "↓ Κύλιση για περισσότερες δηλώσεις";
+        ? `↓ Περισσότερες δηλώσεις · ${listTotal} συνολικά`
+        : "↓ Περισσότερες δηλώσεις";
     }
   }
 
@@ -184,8 +184,18 @@
   });
 
   const listScroll = $("#list-scroll");
+  const listHint = $("#list-hint");
   if (listScroll) {
     listScroll.addEventListener("scroll", syncListOverflow, { passive: true });
+  }
+  if (listHint) {
+    listHint.addEventListener("click", () => {
+      if (!listScroll) return;
+      listScroll.scrollBy({
+        top: Math.round(Math.max(140, listScroll.clientHeight * 0.85)),
+        behavior: "smooth",
+      });
+    });
   }
   window.addEventListener("resize", syncListOverflow);
 

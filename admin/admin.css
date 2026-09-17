@@ -102,20 +102,24 @@ button:disabled { opacity: .6; cursor: wait; }
   border-radius: 999px;
   border: 2px solid #e4ddd2;
 }
-.list-hint {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+button.list-hint {
+  flex-shrink: 0;
+  width: 100%;
   margin: 0;
-  padding: 32px 12px 12px;
-  text-align: center;
-  font-size: .84rem;
-  font-weight: 800;
+  border: 0;
+  border-top: 1px solid #c5b48a;
+  border-radius: 0;
+  background: var(--lime);
   color: var(--wine);
-  background: linear-gradient(transparent, #efebe3 38%);
-  pointer-events: none;
-  z-index: 2;
+  font-size: .9rem;
+  font-weight: 800;
+  padding: 12px 12px 13px;
+  cursor: pointer;
+  letter-spacing: .01em;
+}
+button.list-hint:hover,
+button.list-hint:focus {
+  filter: brightness(0.97);
 }
 .detail-pane {
   padding: 16px;
