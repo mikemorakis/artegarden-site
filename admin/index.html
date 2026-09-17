@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Admin — Arte Garden Προσφορές</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div id="login-view" class="wrap narrow hidden">
+    <h1>Arte Garden</h1>
+    <p class="sub">Σύνδεση για προσφορές</p>
+    <form id="login-form" class="card">
+      <label>Username<input name="username" autocomplete="username" required></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <p id="login-err" class="err"></p>
+      <button type="submit">Είσοδος</button>
+    </form>
+  </div>
+
+  <div id="app-view" class="hidden">
+    <header class="top">
+      <div>
+        <strong>Arte Garden · Προσφορές</strong>
+        <span id="who" class="muted"></span>
+      </div>
+      <button type="button" id="logout-btn" class="ghost">Έξοδος</button>
+    </header>
+
+    <main class="layout">
+      <aside class="list-pane">
+        <div class="filters">
+          <button type="button" data-filter="" class="chip on">Όλα</button>
+          <button type="button" data-filter="new" class="chip">Νέα</button>
+          <button type="button" data-filter="offered" class="chip">Προσφορά</button>
+          <button type="button" data-filter="closed" class="chip">Κλειστά</button>
+        </div>
+        <div id="list"></div>
+      </aside>
+
+      <section class="detail-pane">
+        <div id="empty" class="empty">Επίλεξε μια δήλωση από αριστερά.</div>
+        <div id="detail" class="hidden">
+          <div class="card">
+            <div class="detail-head">
+              <h2 id="d-name"></h2>
+              <select id="d-status">
+                <option value="new">Νέα</option>
+                <option value="offered">Προσφορά στάλθηκε</option>
+                <option value="closed">Κλειστή</option>
+              </select>
+            </div>
+            <dl class="meta" id="d-meta"></dl>
+            <p id="d-message" class="msg"></p>
+          </div>
+
+          <div class="card">
+            <h3>Νέα προσφορά</h3>
+            <form id="offer-form" class="offer-grid">
+              <label>Ημερομηνία<input name="event_date" type="date" required></label>
+              <label>Καλεσμένοι<input name="guests" type="number" min="1" max="100"></label>
+              <label>Τιμή / άτομο (€)<input name="price_per_person" type="number" min="0" step="0.5" value="15" required></label>
+              <label>Χρέωση χώρου (€)<input name="venue_fee" type="number" min="0" step="1" value="0" required></label>
+              <label class="full">Τι περιλαμβάνει<textarea name="includes" rows="5" required placeholder="π.χ. Απεριόριστα αναψυκτικά & χυμοί&#10;Τραπεζοκαθίσματα&#10;Ηχητική κάλυψη&#10;Καθαριότητα"></textarea></label>
+              <label class="full">Σημειώσεις (προαιρετικό)<textarea name="notes" rows="2"></textarea></label>
+              <div class="full total-line">Ενδεικτικό σύνολο: <strong id="offer-total">—</strong></div>
+              <p id="offer-err" class="err full"></p>
+              <p id="offer-ok" class="ok full"></p>
+              <button type="submit" class="full send">Αποστολή προσφοράς</button>
+            </form>
+          </div>
+
+          <div class="card" id="past-offers-wrap">
+            <h3>Ιστορικό προσφορών</h3>
+            <div id="past-offers"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

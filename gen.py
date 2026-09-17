@@ -1179,6 +1179,7 @@ def main():
     if os.path.exists(OUT): shutil.rmtree(OUT)
     os.makedirs(OUT)
     shutil.copytree(os.path.join(os.path.dirname(__file__), "assets"), os.path.join(OUT, "assets"))
+    shutil.copytree(os.path.join(os.path.dirname(__file__), "admin"), os.path.join(OUT, "admin"))
 
     write("index.html", home_page())
     write("timokatalogos/index.html", pricing_page())
@@ -1198,7 +1199,7 @@ def main():
         sm.append(f"<url><loc>{BASE}{u}</loc><changefreq>monthly</changefreq><priority>{'1.0' if u=='/' else '0.8'}</priority></url>")
     sm.append("</urlset>")
     write("sitemap.xml", "\n".join(sm))
-    write("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {BASE}/sitemap.xml\n")
+    write("robots.txt", f"User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: {BASE}/sitemap.xml\n")
     write("_headers", (
         "/assets/*\n"
         "  Cache-Control: public, max-age=31536000, immutable\n"
